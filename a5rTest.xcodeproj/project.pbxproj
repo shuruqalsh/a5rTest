@@ -151,6 +151,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = a5rTest/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "$(PRODUCT_BUNDLE_IDENTIFIER)We need camera access to analyze your presentation skills";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -182,6 +183,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = a5rTest/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "$(PRODUCT_BUNDLE_IDENTIFIER)We need camera access to analyze your presentation skills";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

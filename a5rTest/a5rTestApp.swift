@@ -6,27 +6,23 @@
 //
 
 import SwiftUI
-import SwiftData
 
 @main
 struct a5rTestApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
-
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            PresentationAnalyzerView()
         }
-        .modelContainer(sharedModelContainer)
+    }
+}
+
+// Bridge between SwiftUI and UIKit
+struct PresentationAnalyzerView: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> PresentationAnalyzerViewController {
+        return PresentationAnalyzerViewController()
+    }
+    
+    func updateUIViewController(_ uiViewController: PresentationAnalyzerViewController, context: Context) {
+        // Updates can be handled here if needed
     }
 }
