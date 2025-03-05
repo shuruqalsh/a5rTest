@@ -16,6 +16,10 @@ class PresentationAnalyzerViewController: UIViewController {
     private var lastWarningTime: Date?
     private let warningCooldown: TimeInterval = 3.0 // Show warning every 3 seconds
     
+    // إضافة المتغيرات الجديدة في بداية الكلاس
+    private let wristProximityThreshold: CGFloat = 0.5
+    private let chestHeightRange: ClosedRange<CGFloat> = 0.7...0.9
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
@@ -203,35 +207,67 @@ class PresentationAnalyzerViewController: UIViewController {
             guard let self = self else { return }
             
             if let pose = observations.first {
-                // Check for hands behind head pose
-                if let rightWrist = try? pose.recognizedPoint(.rightWrist),
-                   let leftWrist = try? pose.recognizedPoint(.leftWrist),
-                   let nose = try? pose.recognizedPoint(.nose) {
-                    
-                    // If wrists are above nose level and towards the back of the head
-                    if rightWrist.y > nose.y && leftWrist.y > nose.y {
-                        let warning = "⚠️ Warning: Avoid putting hands behind your head - " +
-                                    "it can appear casual or defensive. Keep your arms relaxed " +
-                                    "at your sides or use natural gestures.\n"
-                        updateFeedbackLabel(warning)
-                    }
+                // التحقق من وضعية تكتيف اليدين
+                if self.checkArmsCrossed(pose) {
+                    let warning = "⚠️ Warning: Uncross your arms - " +
+                                "crossed arms can appear defensive or unengaged. " +
+                                "Try to keep your arms relaxed at your sides."
+                    self.updateFeedbackLabel(warning, isArmsCrossed: true)
                 }
             }
         }
     }
     
-    private func updateFeedbackLabel(_ newFeedback: String) {
-        // Style the feedback label
+    // إضافة دالة التحقق من تكتيف اليدين
+    private func checkArmsCrossed(_ pose: VNHumanBodyPoseObservation) -> Bool {
+        guard let rightWrist = try? pose.recognizedPoint(.rightWrist),
+              let leftWrist = try? pose.recognizedPoint(.leftWrist),
+              let rightElbow = try? pose.recognizedPoint(.rightElbow),
+              let leftElbow = try? pose.recognizedPoint(.leftElbow),
+              let rightShoulder = try? pose.recognizedPoint(.rightShoulder),
+              let leftShoulder = try? pose.recognizedPoint(.leftShoulder) else {
+            return false
+        }
+        
+        // التحقق من أن النقاط مرئية بشكل كافٍ
+        let confidenceThreshold: Float = 0.3
+        guard rightWrist.confidence > confidenceThreshold &&
+              leftWrist.confidence > confidenceThreshold &&
+              rightElbow.confidence > confidenceThreshold &&
+              leftElbow.confidence > confidenceThreshold &&
+              rightShoulder.confidence > confidenceThreshold &&
+              leftShoulder.confidence > confidenceThreshold else {
+            return false
+        }
+        
+        // حساب المسافات
+        let shoulderWidth = distance(from: leftShoulder.location, to: rightShoulder.location)
+        let wristDistance = distance(from: leftWrist.location, to: rightWrist.location)
+        
+        // حساب الارتفاع النسبي
+        let shoulderHeight = (leftShoulder.location.y + rightShoulder.location.y) / 2
+        let wristHeight = (leftWrist.location.y + rightWrist.location.y) / 2
+        let relativeWristHeight = (wristHeight - shoulderHeight) / shoulderWidth
+        
+        // التحقق من معايير تكتيف اليدين
+        let isWristsClose = wristDistance < (shoulderWidth * wristProximityThreshold)
+        let isWristsAtChestHeight = chestHeightRange.contains(relativeWristHeight)
+        
+        return isWristsClose && isWristsAtChestHeight
+    }
+    
+    // تعديل دالة updateFeedbackLabel لدعم اللون الأزرق
+    private func updateFeedbackLabel(_ newFeedback: String, isArmsCrossed: Bool = false) {
         let attributedString = NSMutableAttributedString()
         
-        // Split feedback into lines
         let lines = newFeedback.components(separatedBy: "\n")
         for line in lines {
             if line.isEmpty { continue }
             
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 16, weight: line.contains("Warning") ? .bold : .regular),
-                .foregroundColor: line.contains("Warning") ? UIColor.red : UIColor.white
+                .foregroundColor: isArmsCrossed ? UIColor.systemBlue : 
+                                (line.contains("Warning") ? UIColor.red : UIColor.white)
             ]
             
             let attributedLine = NSAttributedString(string: line + "\n", attributes: attributes)
@@ -239,6 +275,13 @@ class PresentationAnalyzerViewController: UIViewController {
         }
         
         feedbackLabel.attributedText = attributedString
+    }
+    
+    // دالة مساعدة لحساب المسافة بين نقطتين
+    private func distance(from point1: CGPoint, to point2: CGPoint) -> CGFloat {
+        let dx = point2.x - point1.x
+        let dy = point2.y - point1.y
+        return sqrt(dx * dx + dy * dy)
     }
 }
 
