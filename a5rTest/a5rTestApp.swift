@@ -4,7 +4,7 @@ import SwiftUI
 struct a5rTestApp: App {
     var body: some Scene {
         WindowGroup {
-            PresentationAnalyzerView()
+            SplashScreenView()
         }
     }
 }

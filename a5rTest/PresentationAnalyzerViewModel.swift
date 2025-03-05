@@ -11,6 +11,7 @@ import CoreGraphics
 class PresentationAnalyzerViewModel: NSObject, ObservableObject {
     @Published var positionText: String = ""
     @Published var feedbackText: String = ""
+    @Published var cameraError: String = ""
     
     private var leftHipPositions: [CGFloat] = []
     private var rightHipPositions: [CGFloat] = []
@@ -50,7 +51,13 @@ class PresentationAnalyzerViewModel: NSObject, ObservableObject {
 
     
     private var captureSession: AVCaptureSession?
-    private var videoPreviewLayer: AVCaptureVideoPreviewLayer?
+    var videoPreviewLayer: AVCaptureVideoPreviewLayer? {
+        didSet {
+            if let layer = videoPreviewLayer {
+                layer.videoGravity = .resizeAspectFill
+            }
+        }
+    }
     private var neckPositions: [CGPoint] = []
     private var relativeMovements: [CGFloat] = []
     
@@ -64,45 +71,78 @@ class PresentationAnalyzerViewModel: NSObject, ObservableObject {
     }
     
     func setupCamera(in view: UIView) {
-        captureSession = AVCaptureSession()
-        guard let captureSession = captureSession else { return }
+        // Ensure we're on the main thread
+        DispatchQueue.main.async {
+            self.setupCameraInternal(in: view)
+        }
+    }
+
+    private func setupCameraInternal(in view: UIView) {
+        // Stop existing session if any
+        captureSession?.stopRunning()
         
+        // Create new session
+        let session = AVCaptureSession()
+        session.beginConfiguration()
+        
+        // Set quality level
+        if session.canSetSessionPreset(.high) {
+            session.sessionPreset = .high
+        }
+        
+        // Setup camera input
         guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) else {
-            print("❌ Failed to access front camera")
+            self.cameraError = "No front camera available"
             return
         }
         
         do {
             let input = try AVCaptureDeviceInput(device: camera)
-            if captureSession.canAddInput(input) {
-                captureSession.addInput(input)
+            if session.canAddInput(input) {
+                session.addInput(input)
+            } else {
+                self.cameraError = "Could not add camera input"
+                return
             }
             
+            // Setup video output
             let videoOutput = AVCaptureVideoDataOutput()
             videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "videoQueue"))
-            if captureSession.canAddOutput(videoOutput) {
-                captureSession.addOutput(videoOutput)
+            if session.canAddOutput(videoOutput) {
+                session.addOutput(videoOutput)
+            } else {
+                self.cameraError = "Could not add video output"
+                return
             }
             
-            // 🔥 إزالة الطبقات القديمة لمنع التداخل
-            view.layer.sublayers?.forEach { $0.removeFromSuperlayer() }
+            // Commit configuration
+            session.commitConfiguration()
             
-            // إعداد الـ Video Preview Layer
-            let videoPreviewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
-            videoPreviewLayer.videoGravity = .resizeAspectFill
+            // Setup preview layer
+            let previewLayer = AVCaptureVideoPreviewLayer(session: session)
+            previewLayer.frame = view.bounds
+            previewLayer.videoGravity = .resizeAspectFill
             
-            DispatchQueue.main.async {
-                videoPreviewLayer.frame = view.bounds
-                view.layer.addSublayer(videoPreviewLayer)
+            // Remove existing preview layer if any
+            view.layer.sublayers?.forEach { layer in
+                if layer is AVCaptureVideoPreviewLayer {
+                    layer.removeFromSuperlayer()
+                }
             }
-
-            // ✅ استدعاء startRunning على الـ Background Thread
+            
+            // Add new preview layer
+            view.layer.insertSublayer(previewLayer, at: 0)
+            self.videoPreviewLayer = previewLayer
+            self.captureSession = session
+            
+            // Start running
             DispatchQueue.global(qos: .userInitiated).async {
-                captureSession.startRunning()
+                session.startRunning()
             }
             
         } catch {
-            print("❌ Error setting up camera: \(error.localizedDescription)")
+            self.cameraError = "Camera setup error: \(error.localizedDescription)"
+            print("Camera setup error: \(error)")
         }
     }
 
