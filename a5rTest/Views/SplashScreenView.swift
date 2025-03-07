@@ -1,5 +1,70 @@
 import SwiftUI
 
+struct ShootingStar: View {
+    @State private var offset = CGSize.zero
+    @State private var opacity: Double = 0
+    
+    let startPoint: CGPoint
+    let duration: Double
+    let delay: Double
+    let angle: Double
+    
+    var body: some View {
+        // Star with trail effect
+        HStack(spacing: 0) {
+            // Trail
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [.white, .white.opacity(0)]),
+                        startPoint: .trailing,
+                        endPoint: .leading
+                    )
+                )
+                .frame(width: 30, height: 1.5)
+                .blur(radius: 0.5)
+            
+            // Main star
+            Circle()
+                .fill(Color.white)
+                .frame(width: 2.5, height: 2.5)
+                .blur(radius: 0.5)
+                .overlay(
+                    Circle()
+                        .fill(Color.white)
+                        .blur(radius: 1)
+                        .opacity(0.9)
+                )
+        }
+        .rotationEffect(.degrees(angle))
+        .position(startPoint)
+        .offset(offset)
+        .opacity(opacity)
+        .onAppear {
+            let distance = UIScreen.main.bounds.width * 1.5
+            let dx = cos(angle * .pi / 180) * distance
+            let dy = sin(angle * .pi / 180) * distance
+            
+            withAnimation(
+                .easeOut(duration: duration)
+                .delay(delay)
+                .repeatForever(autoreverses: false)
+            ) {
+                offset = CGSize(width: dx, height: dy)
+                opacity = 0.8
+            }
+            
+            withAnimation(
+                .easeIn(duration: duration * 0.3)
+                .delay(delay + duration * 0.7)
+                .repeatForever(autoreverses: false)
+            ) {
+                opacity = 0
+            }
+        }
+    }
+}
+
 struct SplashScreenView: View {
     @State private var isActive = false
     @State private var glowOpacity = 0.0
@@ -9,6 +74,21 @@ struct SplashScreenView: View {
     @State private var logoGlow = 0.0
     @State private var logoOpacity = 0.0
     @State private var pemoX: CGFloat = 0.5 // Start at center
+    
+    // Updated shooting star positions with consistent direction and better coverage
+    private let shootingStars: [(point: CGPoint, duration: Double, delay: Double, angle: Double)] = [
+        // Top section stars
+        (CGPoint(x: -30, y: 0), 2.0, 0.0, 45),
+        (CGPoint(x: -25, y: 100), 1.8, 1.2, 43),
+        
+        // Middle section stars
+        (CGPoint(x: -20, y: UIScreen.main.bounds.height * 0.4), 2.2, 0.6, 45),
+        (CGPoint(x: -35, y: UIScreen.main.bounds.height * 0.5), 1.9, 1.8, 44),
+        
+        // Bottom section stars
+        (CGPoint(x: -15, y: UIScreen.main.bounds.height * 0.7), 2.1, 0.3, 46),
+        (CGPoint(x: -25, y: UIScreen.main.bounds.height * 0.9), 2.0, 1.5, 45)
+    ]
     
     // Correct green color to match OnboardingView
     private let pemoColor = Color(red: 183/255, green: 255/255, blue: 183/255)
@@ -22,6 +102,17 @@ struct SplashScreenView: View {
                     // Background
                     Color.black
                         .ignoresSafeArea()
+                    
+                    // Shooting Stars
+                    ForEach(0..<shootingStars.count, id: \.self) { index in
+                        let star = shootingStars[index]
+                        ShootingStar(
+                            startPoint: star.point,
+                            duration: star.duration,
+                            delay: star.delay,
+                            angle: star.angle
+                        )
+                    }
                     
                     // PEMO character
                     let pemoSize = geometry.size.width * 0.45 // Match onboarding size exactly
