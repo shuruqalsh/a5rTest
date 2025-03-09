@@ -91,7 +91,7 @@ struct SplashScreenView: View {
     ]
     
     // Correct green color to match OnboardingView
-    private let pemoColor = Color(red: 183/255, green: 255/255, blue: 183/255)
+    private let pemoColor = Color(hex: "#CFF39A")
     
     var body: some View {
         GeometryReader { geometry in
@@ -100,8 +100,10 @@ struct SplashScreenView: View {
             } else {
                 ZStack {
                     // Background
-                    Color.black
+                    // 🌟 خلفية بلون Hex مخصص
+                    Color(hex: "#141F25")
                         .ignoresSafeArea()
+
                     
                     // Shooting Stars
                     ForEach(0..<shootingStars.count, id: \.self) { index in
@@ -134,13 +136,13 @@ struct SplashScreenView: View {
                         Image("PEMO")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: pemoSize)
+                            .frame(width: 410, height: 410) // حجم ثابت
                             .colorMultiply(pemoColor)
                     }
                     .scaleEffect(pemoScale)
                     .position(
                         x: geometry.size.width * pemoX,
-                        y: geometry.size.height * (0.5 + pemoOffset)
+                        y: geometry.size.height * (0.9 + pemoOffset)
                     )
                     .opacity(isActive ? 1 : 0)
                     
@@ -208,8 +210,8 @@ struct SplashScreenView: View {
                         withAnimation(
                             .spring(response: 0.7, dampingFraction: 0.8)
                         ) {
-                            pemoScale = 1.0
-                            pemoX = 0.8 // Match onboarding x position
+                            pemoScale = 0.5
+                            pemoX = 0.7 // Match onboarding x position
                             pemoOffset = -0.3 // Match onboarding y position
                         }
                         

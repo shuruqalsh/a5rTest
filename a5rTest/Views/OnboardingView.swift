@@ -7,8 +7,8 @@ struct OnboardingView: View {
     @State private var starOpacities: [Double] = (0..<20).map { _ in 0.0 } // Increased number of stars
     
     // Correct green color
-    private let pemoColor = Color(red: 183/255, green: 255/255, blue: 183/255)
-    
+    private let pemoColor = Color(hex: "#CFF39A")
+
     // Fixed star positions and sizes with better distribution
     private let stars: [(position: CGPoint, size: CGFloat, duration: Double, delay: Double, maxOpacity: Double)] = {
         var positions: [(CGPoint, CGFloat, Double, Double, Double)] = []
@@ -84,7 +84,7 @@ struct OnboardingView: View {
         GeometryReader { geometry in
             ZStack {
                 // Background
-                Color.black
+                Color(hex: "#141F25")
                     .ignoresSafeArea()
                 
                 // Fixed Stars with individual animations
@@ -128,14 +128,15 @@ struct OnboardingView: View {
                     // First Page
                     VStack {
                         Spacer()
-                            .frame(height: geometry.size.height * 0.3)
+                            .frame(height: geometry.size.height * 0.1)
                         
-                        Text("AI coach\nanalyzes and\nenhances your\nPresentation\nskills in real time")
+                        Text("AI coach\nanalyzes and\nenhances your\nPresentation \nskills in real time")
                             .font(.system(size: 40, weight: .bold))
                             .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
+                            .multilineTextAlignment(.leading)
                             .frame(maxWidth: .infinity)
+                            .padding(.trailing, 50)
+
                         
                         Spacer()
                         
@@ -148,13 +149,14 @@ struct OnboardingView: View {
                                 .fill(Color.gray)
                                 .frame(width: 8, height: 8)
                         }
-                        .padding(.bottom, 50)
+                        .padding(.bottom, 150)
                     }
                     .tag(0)
                     
                     // Second Page
                     VStack {
                         Spacer()
+
                             .frame(height: geometry.size.height * 0.2)
                         
                         Text("Record Your\nPresentation ")
@@ -171,7 +173,10 @@ struct OnboardingView: View {
                             .padding(.top, 15)
                         
                         Spacer()
+
                             .frame(height: geometry.size.height * 0.1)
+
+                        
                         
                         // Get Started Button
                         Button(action: {
@@ -189,7 +194,6 @@ struct OnboardingView: View {
                                 )
                         }
                         
-                        Spacer()
                         
                         // Page dots
                         HStack(spacing: 8) {
@@ -233,25 +237,27 @@ struct OnboardingView: View {
                         .frame(width: pemoSize * 1.4)
                         .blur(radius: 30)
                         .opacity(glowOpacity * 0.4)
-                    
+
                     Circle()
                         .fill(pemoColor)
                         .frame(width: pemoSize * 1.2)
                         .blur(radius: 20)
                         .opacity(glowOpacity * 0.3)
-                    
+
                     // Character
                     Group {
                         if currentPage == 1 {
                             Image("PEMO_SMILE")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .frame(width: pemoSize)
+                                .frame(width: 200, height: 200) // حجم ثابت
+
+                            
                         } else {
                             Image("PEMO")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .frame(width: pemoSize)
+                                .frame(width: 200, height: 200) // حجم ثابت
                         }
                     }
                     .colorMultiply(pemoColor)
@@ -259,31 +265,35 @@ struct OnboardingView: View {
                     // Voice and Mic icons for second page
                     if currentPage == 1 {
                         HStack(spacing: 8) {
-                            Image("VOICE")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 35)
-                                .colorMultiply(pemoColor)
-                            
                             Image("MIC")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: 35)
                                 .colorMultiply(pemoColor)
+                            
+                            Image("VOICE")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 35)
+                                .colorMultiply(pemoColor)
+
+                            
+                            
+
                         }
-                        .offset(x: pemoSize * 0.6)
-                        .transition(.opacity.combined(with: .scale))
+                        .offset(x: -100, y: 30)
+                       .transition(.opacity.combined(with: .scale))
                     }
                 }
                 .position(
-                    x: currentPage == 0 ? geometry.size.width * 0.8 : geometry.size.width * 0.25,
-                    y: currentPage == 0 ? geometry.size.height * 0.2 : geometry.size.height * 0.8
+                    x: currentPage == 0 ? geometry.size.width * 0.7 : geometry.size.width * 0.7,
+                    y: currentPage == 0 ? geometry.size.height * 0.6 : geometry.size.height * 0.2
                 )
                 .animation(.spring(response: 0.6, dampingFraction: 0.8), value: currentPage)
             }
         }
         .fullScreenCover(isPresented: $isShowingPresentation) {
-            PresentationAnalyzerView()
+            HomePage()
         }
         .onAppear {
             withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {

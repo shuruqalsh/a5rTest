@@ -4,35 +4,28 @@
 //
 //  Created by shuruq alshammari on 05/09/1446 AH.
 //
-//الاكواد الخاصه في الكاميرا 
+
 import Foundation
 import SwiftUI
 import AVFoundation
 
 struct CameraView: UIViewRepresentable {
     let analyzer: PresentationAnalyzerViewModel
+    let isCameraActive: Bool
     
     func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: UIScreen.main.bounds)
-        view.backgroundColor = .black
-        
-        // Request camera permission first
-        AVCaptureDevice.requestAccess(for: .video) { granted in
-            if granted {
-                DispatchQueue.main.async {
-                    analyzer.setupCamera(in: view)
-                }
-            }
-        }
-        
+        let view = UIView()
+        view.backgroundColor = .clear
         return view
     }
     
     func updateUIView(_ uiView: UIView, context: Context) {
-        uiView.frame = UIScreen.main.bounds
-        if let previewLayer = analyzer.videoPreviewLayer {
-            previewLayer.frame = uiView.bounds
+        if isCameraActive {
+            print("📸 Starting camera...")
+            analyzer.setupCamera(in: uiView) // ✅ تأكيد تشغيل الكاميرا عند الحاجة
+        } else {
+            print("🛑 Stopping camera...")
+            analyzer.stopCamera() // ✅ إيقاف الكاميرا عند عدم الحاجة
         }
     }
 }
-
