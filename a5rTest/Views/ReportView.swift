@@ -7,6 +7,11 @@
 
 import Foundation
 import SwiftUI
+import AVKit
+import UIKit
+import AVFoundation
+import Vision
+import CoreGraphics
 
 
 
@@ -27,8 +32,10 @@ struct ReportView: View {
     // 🆕 قائمة الوضعيات الخاطئة (تأتي من الكاميرا)
     let wrongPostures: [Posture]
     @State private var showPostureList = false
+    let videoURL: URL?
     let elapsedTime: TimeInterval // 🆕 استقبال الوقت المستغرق
-    
+    @State private var showVideoPlayer = false // ✅ متغير لحالة فتح الفيديو
+
     @State private var isShowingHomePage = false // 
 
     
@@ -50,7 +57,31 @@ struct ReportView: View {
                                 .font(.system(size: 20, weight: .semibold))
                                 .foregroundColor(.white)
                                 .padding(.leading, 20) // مسافة إضافية من اليسار
-
+                            if let videoURL = videoURL {
+                                Button(action: {
+                                    showVideoPlayer = true // فتح الفيديو عند الضغط
+                                }) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color(hex: "#CFF39A")) // ✅ لون الزر الأخضر الفاتح
+                                            .frame(width: 50, height: 50) // ✅ حجم الزر
+                                        
+                                        Image(systemName: "play.fill") // 🎬 أيقونة التشغيل
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 25, height: 25) // ✅ حجم الأيقونة داخل الزر
+                                            .foregroundColor(.black) // ✅ لون الأيقونة
+                                    }
+                                }
+                                .fullScreenCover(isPresented: $showVideoPlayer) {
+                                    VideoPlayerView(videoURL: videoURL) // ✅ عرض الفيديو بملء الشاشة
+                                }
+                            } else {
+                                Text("❌ لا يوجد فيديو مسجل")
+                                    .foregroundColor(.red)
+                                    .padding()
+                            }
+                            
                             Spacer()
                             
                             Button(action: {
@@ -142,7 +173,7 @@ struct ReportView: View {
 
                             .foregroundColor(.white)
                             .padding(.top,130) // مسافة إضافيمن اليسار
-
+                       
                         Button(action: {
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 showPostureList.toggle()
@@ -262,6 +293,7 @@ struct ReportView_Previews: PreviewProvider {
                 Posture(name: "لمس الرقبة", correctImage: "correct1", wrongImage: "wrong1"),
                 Posture(name: "تكتيف الأذرع", correctImage: "correct2", wrongImage: "wrong2")
             ],
+            videoURL: nil,
             elapsedTime: 123 // 🕒 الوقت المستغرق بالثواني (مثلاً دقيقتين و3 ثواني)
         )
     }

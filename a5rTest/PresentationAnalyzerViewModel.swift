@@ -13,7 +13,17 @@ class PresentationAnalyzerViewModel: NSObject, ObservableObject {
     @Published var positionText: String = ""
     @Published var feedbackText: String = ""
     @Published var handMovementText: String = ""  // لعرض النص المتعلق بحركة اليد
+    @Published var videoURL: URL? // ✅ التأكد من أن المتغير موجود
 
+    private var outputURL: URL?
+    private var videoOutput: AVCaptureMovieFileOutput?
+      private var captureSession: AVCaptureSession?
+      private var videoPreviewLayer: AVCaptureVideoPreviewLayer?
+      
+      override init() {
+          super.init()
+          setupVision()
+      }
     
     // 🆕 المتغيرات الخاصة بوضعية الرقبة دالة (البدايه)
     private var isHandOnNeck: Bool = false
@@ -85,17 +95,11 @@ class PresentationAnalyzerViewModel: NSObject, ObservableObject {
     private var stillFrameCount = 0
     
     
-    private var captureSession: AVCaptureSession?
-    private var videoPreviewLayer: AVCaptureVideoPreviewLayer?
     
     private var faceAnalysisRequest: VNDetectFaceLandmarksRequest?
     private let bodyPoseRequest = VNDetectHumanBodyPoseRequest()
     private let sequenceRequestHandler = VNSequenceRequestHandler()
-    
-    override init() {
-        super.init()
-        setupVision()
-    }
+ 
     
     func setupCamera(in view: UIView) {
         captureSession = AVCaptureSession()
@@ -112,16 +116,20 @@ class PresentationAnalyzerViewModel: NSObject, ObservableObject {
                 captureSession.addInput(input)
             }
             
-            let videoOutput = AVCaptureVideoDataOutput()
-            videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "videoQueue"))
+            let videoOutput = AVCaptureMovieFileOutput() // 🎥 إضافة الـ Movie Output للتسجيل
             if captureSession.canAddOutput(videoOutput) {
                 captureSession.addOutput(videoOutput)
+                self.videoOutput = videoOutput
             }
             
-            // 🔥 إزالة الطبقات القديمة لمنع التداخل
+            let videoDataOutput = AVCaptureVideoDataOutput()
+            videoDataOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "videoQueue"))
+            if captureSession.canAddOutput(videoDataOutput) {
+                captureSession.addOutput(videoDataOutput)
+            }
+            
             view.layer.sublayers?.forEach { $0.removeFromSuperlayer() }
             
-            // إعداد الـ Video Preview Layer
             let videoPreviewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
             videoPreviewLayer.videoGravity = .resizeAspectFill
             
@@ -130,7 +138,6 @@ class PresentationAnalyzerViewModel: NSObject, ObservableObject {
                 view.layer.addSublayer(videoPreviewLayer)
             }
             
-            // ✅ استدعاء startRunning على الـ Background Thread
             DispatchQueue.global(qos: .userInitiated).async {
                 captureSession.startRunning()
             }
@@ -139,7 +146,7 @@ class PresentationAnalyzerViewModel: NSObject, ObservableObject {
             print("❌ Error setting up camera: \(error.localizedDescription)")
         }
     }
-    
+
     
     
     private func setupVision() {
@@ -377,7 +384,40 @@ class PresentationAnalyzerViewModel: NSObject, ObservableObject {
     }
 
     
-      
+
+    
+    func startRecording() {
+        let tempDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        let outputURL = tempDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("mov")
+        
+        self.videoURL = outputURL
+        
+        if let videoOutput = videoOutput, !videoOutput.isRecording {
+            videoOutput.startRecording(to: outputURL, recordingDelegate: self)
+            print("🎥 بدء التسجيل إلى \(outputURL)")
+        }
+    }
+
+    func stopRecording() {
+        guard let videoOutput = videoOutput else {
+            print("❌ خطأ: `videoOutput` غير مهيأ!")
+            return
+        }
+        videoOutput.stopRecording()
+
+        }
+    }
+
+
+
+extension PresentationAnalyzerViewModel: AVCaptureFileOutputRecordingDelegate {
+    func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
+        if error == nil {
+            videoURL = outputFileURL
+        } else {
+            print("Error recording movie: \(error!.localizedDescription)")
+        }
+    }
 }
 
 extension PresentationAnalyzerViewModel: AVCaptureVideoDataOutputSampleBufferDelegate {

@@ -1,4 +1,9 @@
 import SwiftUI
+import AVFoundation
+import UIKit
+import AVFoundation
+import Vision
+import CoreGraphics
 
 struct PresentationAnalyzerView: View {
     @StateObject private var analyzer = PresentationAnalyzerViewModel()
@@ -7,6 +12,11 @@ struct PresentationAnalyzerView: View {
     @State private var isShowingPresentationAnalyzer = false
 
     
+       private var captureSession: AVCaptureSession?
+       private var videoPreviewLayer: AVCaptureVideoPreviewLayer?
+       private var videoOutput = AVCaptureMovieFileOutput()
+    
+       
     
     @State private var startTime: Date = Date() // 🆕 وقت البداية
     @State private var elapsedTime: TimeInterval = 0 // 🆕 الوقت المستغرق
@@ -35,53 +45,68 @@ struct PresentationAnalyzerView: View {
             VStack {
                 
                 
-                // ✅ عرض ملاحظة وضع اليد على الرقبة
-                if !analyzer.positionText.isEmpty {
-                    Text(analyzer.positionText)
-                        .font(.title)
-                        .bold()
-                        .padding()
-                        .background(Color.green.opacity(0.8))
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                        .padding(.top, 50)
-                }
+   
                 
                 Spacer()
                 
-                // ✅ عرض الوقت بشكل مباشر في الواجهة
-                      Text("الوقت: \(formatTime(elapsedTime))")
-                          .font(.system(size: 24, weight: .semibold))
-                          .foregroundColor(.white)
-                          .padding()
-                          .background(Color.black.opacity(0.7))
-                          .cornerRadius(10)
-                          .padding(.top, 20)
+                // ✅ عرض العداد التنازلي في الواجهة
+                if showCountdown {
+                    Text(" \(countdown)")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(10)
+                        .padding(.top, 20)
+                } else {
+                    // ✅ عرض الوقت المستغرق فقط بعد انتهاء العداد التنازلي
+                    Text("\(formatTime(elapsedTime))")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.black.opacity(0.7))
+                        .frame(width: 80, height: 80)
+
+                        .cornerRadius(10)
+                        .padding(.top, 20)
+                }
+                
                       
-                // ✅ عرض العداد لعدد المرات
-                Text("عدد مرات لمس الرقبة: \(analyzer.neckTouchCount)")
-                    .font(.headline)
-                    .padding()
-                    .background(Color.blue.opacity(0.8))
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                    .padding(.bottom, 50)
+                Button(action: {
+                       if analyzer.videoURL == nil {
+                           analyzer.startRecording() // 🎥 بدء التسجيل
+                       } else {
+                           analyzer.stopRecording() // ⏹️ إيقاف التسجيل
+                       }
+                   }) {
+                       Image(systemName: analyzer.videoURL == nil ? "record.circle.fill" : "stop.circle.fill")
+                           .resizable()
+                           .frame(width: 60, height: 60)
+                           .foregroundColor(analyzer.videoURL == nil ? .red : .gray)
+                           .padding()
+                           .background(Color.white.opacity(0.7))
+                           .clipShape(Circle())
+                   }
+               
                 
                 Button(action: {
                     elapsedTime = Date().timeIntervalSince(startTime)
                     isCameraActive = false // ⭐️ إيقاف الكاميرا عند الذهاب إلى التقرير
                     showReport = true
                 }) {
-                    Text("انتهاء")
-                        .font(.title2)
+                    Image("done")
                         .padding()
-                        .background(Color.red)
+                        .background(Color(hex: "#38464F"))
                         .foregroundColor(.white)
                         .cornerRadius(10)
                 }
                 .padding(.bottom, 20)
                 .fullScreenCover(isPresented: $showReport) {
-                    ReportView(wrongPostures: getWrongPostures(), elapsedTime: elapsedTime)
+                        ReportView(
+                            wrongPostures: getWrongPostures(),
+                            videoURL: analyzer.videoURL,
+                            elapsedTime: elapsedTime)
+
                         .onDisappear {
                             print("🔙 Returned from ReportView")
                             resetPresentation() // ⭐️ إعادة ضبط العرض عند العودة
@@ -90,9 +115,7 @@ struct PresentationAnalyzerView: View {
             }
             .onAppear {
                 print("📱 PresentationAnalyzerView appeared")
-                startTime = Date()
-                startLiveTimer()
-                startCountdown() // بدء العداد التنازلي عند العودة من التقرير
+                startCountdown()  // ✅ بدء العداد التنازلي مباشرة عند الظهور
             }
             .onDisappear {
                 print("📱 PresentationAnalyzerView disappeared")
@@ -104,22 +127,7 @@ struct PresentationAnalyzerView: View {
 
         
                 
-                Text(analyzer.handMovementText)
-                    .font(.headline)
-                    .padding()
-                    .background(Color.purple.opacity(0.8))
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                    .padding(.top, 10)
-
-                
-                Text("عدد مرات حركة الرأس الزائدة: \(analyzer.headMovementCount)")
-                    .font(.headline)
-                    .padding()
-                    .background(Color.orange.opacity(0.8))
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                    .padding(.bottom, 20)
+             
 
                 
                 
@@ -143,6 +151,8 @@ struct PresentationAnalyzerView: View {
         analyzer.headMovementCount = 0
         startTime = Date()
         startCountdown()
+        analyzer.videoURL = nil // ✅ السماح بالتسجيل مرة أخرى
+
     }
     
     private func startCountdown() {
@@ -154,11 +164,17 @@ struct PresentationAnalyzerView: View {
             } else {
                 timer.invalidate()
                 showCountdown = false
-                isCameraActive = true // ⭐️ تفعيل الكاميرا بعد انتهاء العداد التنازلي
-                print("🎬 Camera activated!")
+                isCameraActive = true
+                startTime = Date() // 🕒 بدء حساب الوقت بعد انتهاء العد التنازلي
+                startLiveTimer() // 🕒 تشغيل المؤقت المباشر
+                print("🎬 Camera activated and timer started!")
+
+                // ✅ بعد انتهاء العد التنازلي → ابدأ التسجيل تلقائيًا
+                analyzer.startRecording()
             }
         }
     }
+
     
     
     private func startLiveTimer() {
@@ -196,3 +212,6 @@ struct PresentationAnalyzerView: View {
     }
 }
     
+#Preview {
+    PresentationAnalyzerView()
+}
